@@ -9,6 +9,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Web.Hosting;
 using System.Web.Http;
 using System.Web.Http.Results;
 using System.Xml.Linq;
@@ -27,25 +28,35 @@ namespace Serko_api.Controllers
             outputXML = new StringBuilder();
         }
 
-        public IHttpActionResult Get([FromBody]string text)
+        // /api/values/
+        [HttpGet]
+        public IHttpActionResult Get()//[FromBody]string text
         {
             claim obj;
-            //var text = File.ReadAllText(@"C:\Users\Rahul\Desktop\presto\Data.txt");
+            var text = File.ReadAllText(HostingEnvironment.MapPath("~/App_Data/Data.txt"));
 
-            if (!getXML<claim>(text))
-                throw new HttpResponseException(new HttpResponseMessage(HttpStatusCode.ExpectationFailed));
+            var message = string.Empty;
+            switch (getXML<claim>(text))
+            {
+                case responseEnum.MissingTag: message = "Missing end tag"; break;
+                case responseEnum.Invalid: message = "No [Total] attribute found"; break;
+
+            }
+
+            if (!string.IsNullOrEmpty(message))
+                throw new HttpResponseException(Request.CreateErrorResponse(HttpStatusCode.PreconditionFailed,
+                      message));
 
             obj = DeserializeFromXmlString<claim>(outputXML.ToString());
-
             return Json(getOutput(obj));
         }
 
         private message getOutput(claim obj) => new message(obj);
 
 
-        private bool getXML<T>(string text)
+        private responseEnum getXML<T>(string text)
         {
-            var _isSuccess = true;
+            responseEnum _response = responseEnum.Success;
 
             outputXML.Clear();
 
@@ -53,13 +64,28 @@ namespace Serko_api.Controllers
             Type type = typeof(T);
             foreach (PropertyInfo property in type.GetProperties())
             {
-                var pattern = $@"<{property.Name}.*>((.|\n)*?)<\/{property.Name}>";
-                var match = Regex.Match(text, pattern);
+                var startpattern = $@"<{property.Name}.*>((.|\n)*?)";
+                var endpattern = $@"<\/{property.Name}>";
 
-                if (match.Success)
-                    outputXML.AppendLine(match.Value);
-                else
-                    _isSuccess = false;
+                var validation = property.GetCustomAttributes<Validate>(true).Any();
+
+                var openTagmatch = Regex.Match(text, startpattern);
+                var actualTagmatch = Regex.Match(text, string.Concat(startpattern, endpattern));
+
+
+                if (actualTagmatch.Success)
+                    outputXML.AppendLine(actualTagmatch.Value);
+                else if (openTagmatch.Success)
+                {
+                    _response = responseEnum.MissingTag;
+                    break;
+                }
+                else if (validation)
+                {
+                    _response = responseEnum.Invalid;
+                    break;
+                }
+
 
 
             }
@@ -68,8 +94,10 @@ namespace Serko_api.Controllers
 
 
 
-            return _isSuccess;
+            return _response;
         }
+
+
 
 
         private T DeserializeFromXmlString<T>(string xmlString)

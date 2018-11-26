@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serko_api.Utility;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -12,7 +13,9 @@ namespace Serko_api.Models
         public string vendor { get; set; }
         public string description { get; set; }
         public string date { get; set; }
-        public string cost_centre { get; set; }
+        public string cost_centre { get; set; } = "UNKNOWN";
+
+        [Validate]
         public double total { get; set; }
         public string payment_method { get; set; }
     }

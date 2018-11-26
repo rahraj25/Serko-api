@@ -16,8 +16,8 @@ namespace Serko_api
 
             routes.MapRoute(
                 name: "Default",
-                url: "{controller}/{action}/{id}",
-                defaults: new { controller = "Values", action = "api/values", id = UrlParameter.Optional }
+                url: "api/{controller}/{action}/{id}",
+                defaults: new {id = UrlParameter.Optional }
             );
         }
     }
