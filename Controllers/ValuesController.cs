@@ -30,16 +30,17 @@ namespace Serko_api.Controllers
 
         // /api/values/
         [HttpGet]
-        public IHttpActionResult Get()//[FromBody]string text
+        public IHttpActionResult Get([FromBody]string text)
         {
             claim obj;
-            var text = File.ReadAllText(HostingEnvironment.MapPath("~/App_Data/Data.txt"));
+            //var text = File.ReadAllText(HostingEnvironment.MapPath("~/App_Data/Data.txt"));
 
             var message = string.Empty;
             switch (getXML<claim>(text))
             {
                 case responseEnum.MissingTag: message = "Missing end tag"; break;
                 case responseEnum.Invalid: message = "No [Total] attribute found"; break;
+                case responseEnum.MessageFormat: message = "Please verify the data"; break;
 
             }
 
@@ -69,23 +70,29 @@ namespace Serko_api.Controllers
 
                 var validation = property.GetCustomAttributes<Validate>(true).Any();
 
-                var openTagmatch = Regex.Match(text, startpattern);
-                var actualTagmatch = Regex.Match(text, string.Concat(startpattern, endpattern));
-
-
-                if (actualTagmatch.Success)
-                    outputXML.AppendLine(actualTagmatch.Value);
-                else if (openTagmatch.Success)
+                try
                 {
-                    _response = responseEnum.MissingTag;
-                    break;
-                }
-                else if (validation)
-                {
-                    _response = responseEnum.Invalid;
-                    break;
-                }
 
+                    var openTagmatch = Regex.Match(text, startpattern);
+                    var actualTagmatch = Regex.Match(text, string.Concat(startpattern, endpattern));
+
+
+                    if (actualTagmatch.Success)
+                        outputXML.AppendLine(actualTagmatch.Value);
+                    else if (openTagmatch.Success)
+                    {
+                        _response = responseEnum.MissingTag;
+                        break;
+                    }
+                    else if (validation)
+                    {
+                        _response = responseEnum.Invalid;
+                        break;
+                    }
+                }
+                catch (Exception) {
+                    _response = responseEnum.MessageFormat;
+                }
 
 
             }
